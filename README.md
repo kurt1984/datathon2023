@@ -4,14 +4,14 @@ This is the repo for MD+ datathon 2023 project
 Steps to reproduce the result.
 
 
-## Loading data
+## Step 0 Loading data
 
-The MIMIC-IV need to loaded into a database named MIMIC_IV.duckdb, e.g., duckdb in our case, with schemas as the MIMIC-IV suggested.
+The MIMIC-IV hosp module need to be downloaded into a database, e.g., duckdb in our case, with schemas as the MIMIC-IV suggested.
 
-## Cohort building
+## Step 1 Cohort building
 
-step1_cohort_building.ipynb can be runned sequentially to build the cohort, at last, the cohort data was outputted as csv named "main_df.csv"
+step1_cohort_building.ipynb can be runned sequentially from loading data from the database to build the cohort, at last, the cohort data was outputted as csv named "main_df.csv"
 
-## Analysis step
+## Step 2 Analysis step
 
 After setting libraries and directory, step2_Analysis.qmd can be sequentially to load csv data and generate tables, figures listed in the report.
