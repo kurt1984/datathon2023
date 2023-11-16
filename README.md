@@ -14,4 +14,4 @@ step1_cohort_building.ipynb can be runned sequentially from loading data from th
 
 ## Step 2 Analysis step
 
-After setting libraries and directory, step2_Analysis.qmd can be sequentially to load csv data and generate tables, figures listed in the report.
+After setting libraries and directory, step2_Analysis.qmd can be runned sequentially to load csv data and generate tables, figures listed in the report.
