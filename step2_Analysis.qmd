@@ -1,0 +1,327 @@
+---
+title: "Datathon report"
+author: "Emily, Archie, Amy, Lei"
+format: html
+editor: visual
+---
+
+## Data loading
+
+```{r}
+
+library(tidyverse)
+library(gtsummary)
+library(boot)
+library(dplyr)
+library(ggplot2)
+library(ggrepel)
+library(forcats)
+library(scales)
+library(ggpubr)
+#library(ggcoef)
+
+
+main_df <- readr::read_csv('~/dev/datathon/code/main_df.csv')
+setwd('~/dev/datathon/code/report')
+main_df_alc <- main_df |>
+  filter(primary_ccs_diagnosis_category == 660)
+
+L_dataset = main_df # dataset with social_work_flag, readmission_flag (later has 30-day unplanned readmission), and comorbidity index 
+
+# only those with alcohol-related disorders 
+L_dataset_ALC = main_df_alc
+```
+
+## Analysis
+
+### Summary statistics
+
+```{r}
+table1_hosp <- 
+  main_df_alc %>%
+  tbl_summary(by= readmit_flag, include = c(age, insurance, charlson_comorbidity_index, social_work_flag),
+  label = list(age ~ "Age (years)",
+                
+               insurance ~ "Insurance",
+               charlson_comorbidity_index ~ "Charlson Comorbidity Index",
+               social_work_flag ~ "Social Work Referral"),
+  
+  digits = list(age ~ 2,
+                charlson_comorbidity_index ~ 2),
+  statistic = list(age ~ "{mean} ({sd})",
+                   charlson_comorbidity_index ~ "{mean} ({sd})")) %>%
+  modify_caption("**Alcohol Related Disorder Hospitalization Characteristics by 30 Day Unplanned Readmission** (N = {N})")
+table1_hosp
+
+
+table1_pt <- 
+  main_df_alc %>%
+  select(subject_id, gender, race_cat) %>%
+  distinct() %>%
+  tbl_summary( include = c(gender, race_cat),
+  label = list( 
+               gender ~ "Gender",
+               race_cat ~ "Race"
+                )) %>%
+  modify_caption("**Alcohol Related Disorder Admitted Patients Characteristics** (N = {N})")
+table1_pt
+
+```
+
+
+
+```{r}
+## visualizations on % referred  
+
+# # All patients 
+# referred_patients = length(unique(L_dataset[L_dataset$social_work_flag == 1,]$subject_id))
+# all_patients = length(unique(L_dataset$subject_id)) 
+# percent_referred = round(referred_patients / all_patients * 100, 1)
+# # 21.5% 
+
+# Non-alc patients 
+non_ALC_L_dataset = L_dataset[L_dataset$primary_ccs_diagnosis_category != 660,]
+referred_patients = length(unique(non_ALC_L_dataset[non_ALC_L_dataset$social_work_flag == 1,]$subject_id))
+all_patients = length(unique(non_ALC_L_dataset$subject_id)) 
+percent_referred = round(referred_patients / all_patients * 100, 1)
+# 21.2% 
+
+# Alc patients 
+referred_patients_ALC = length(unique(L_dataset_ALC[L_dataset_ALC$social_work_flag == 1,]$subject_id))
+all_patients_ALC = length(unique(L_dataset_ALC$subject_id))
+percent_referred_ALC = round(referred_patients_ALC / all_patients_ALC * 100, 1)
+# 34.1% 
+non_alc_patients_df = c(percent_referred, 100-percent_referred)
+
+
+alc_patients_df = c(percent_referred_ALC, 100-percent_referred_ALC)
+
+jpeg(filename='visualizations/percent_referred.jpeg', units='in', res=300, height=6, width=10)
+par(mfrow = c(1, 2), mar = c(5, 5, 5, 5))  # Adjust the margin to leave space for labels
+pie(non_alc_patients_df, labels = c(paste0(percent_referred,"% referred"), ""), col = c("#FCF351", "#282936"), main='\n\n\nPatients without alcohol-related disorders') # rainbow(length(data))
+pie(alc_patients_df, labels = c(paste0(percent_referred_ALC, "% referred"), ""), col = c("#FCF351", "#282936"), main='\n\n\nPatients with alcohol-related disorders') # rainbow(length(data))
+dev.off()
+
+L_dataset = L_dataset %>% mutate('alc' = ifelse(primary_ccs_diagnosis_category == 660, 1, 0))
+L_dataset$alc = as.factor(L_dataset$alc)
+contingency_table = table(L_dataset$alc, L_dataset$social_work_flag)
+chi_square_result <- chisq.test(contingency_table)
+
+
+
+```
+
+`percent_referred`% of all patients referred to social work. `percent_referred_ALC`% of all patients with alcohol-related disorders referred to social work.
+
+```{r race}
+# summary statistics for race 
+library(ggplot2)
+library(dplyr)
+
+# Race 
+jpeg(filename='visualizations/Race_referred.jpeg', units='in', res=300, height=6, width=10)
+par(mfrow = c(1, 2), mar = c(5, 5, 5, 5))  # Adjust the margin to leave space for labels
+
+labels = c("Asian: ", "Black: ", "Hispanic: ", "Other: ", "White: ")
+race_no_SW = c(1.8, 29.2, 9.0, 5.7, 54.3)
+pie(race_no_SW, labels = paste0(labels, race_no_SW, "%"), col = c("#FCF351", "#282936", "#7DAFD5", "#494c67ff", "#8164a2ff"), main='\n\n\nPatients who did not receive referral') # rainbow(length(data))
+
+labels = c("Asian: ", "Black: ", "Hispanic: ", "Other: ", "White: ")
+race_SW = c(0.8, 10.6, 8.4, 8.5, 71.7)
+pie(race_SW, labels = paste0(labels, race_SW, "%"), col = c("#FCF351", "#282936", "#7DAFD5", "#494c67ff", "#8164a2ff"), main='\n\n\nPatients who received referral') # rainbow(length(data))
+dev.off()
+
+# Chi-square for race 
+contingency_table = table(L_dataset_ALC$social_work_flag, L_dataset_ALC$race_cat)
+chi_square_result <- chisq.test(contingency_table)
+chi_square_result
+
+# Chi-square for readmission 
+contingency_table = table(L_dataset_ALC$readmit_flag, L_dataset_ALC$race_cat)
+chi_square_result <- chisq.test(contingency_table)
+chi_square_result
+
+
+# Chi-square for comorbidity  
+contingency_table = table(L_dataset_ALC$social_work_flag, L_dataset_ALC$race_cat)
+chi_square_result <- chisq.test(contingency_table)
+
+```
+
+```{r}
+
+# Calculate the mean age for each group
+age_summary <- L_dataset_ALC %>% group_by(social_work_flag) %>%  summarize(mean_age = mean(age),
+                                                                           sd_age = sd(age),
+                                                                           n = n())
+
+# Calculate the overall mean age
+overall_mean_age <- mean(L_dataset_ALC$age)
+
+# Create a bar plot with legend labels
+ggplot(age_summary, aes(x = factor(social_work_flag), y = mean_age, fill = factor(social_work_flag))) +
+  geom_bar(stat = "identity", position = "dodge", color = "black", alpha = 0.7) +
+  geom_hline(yintercept = overall_mean_age, linetype = "dashed", color = "red", size = 1) +
+  labs(x = "Social Work Referral", y = "Average Age", fill = "Social Work Referral") +
+    scale_x_discrete(labels = c("No", "Yes")) +  # Change x-axis labels
+  scale_fill_manual(values = c("#282936", "#FCF351"), labels = c("No", "Yes")) +
+  theme_minimal() + 
+ geom_errorbar(
+    aes(ymin = mean_age - sd_age/sqrt(n), ymax = mean_age + sd_age/sqrt(n)),
+    position = position_dodge(width = 0.9),  # Adjust the width as needed
+    width = 0.2,  # Adjust the width of the error bars
+    color = "black"
+  )
+
+
+```
+
+```{r chi_square}
+
+L_dataset_ALC$social_work_flag = as.factor(L_dataset_ALC$social_work_flag)
+L_dataset_ALC$readmit_flag = as.factor(L_dataset_ALC$readmit_flag)
+contingency_table <- table(L_dataset_ALC$social_work_flag, L_dataset_ALC$readmit_flag)
+
+chi_square_result <- chisq.test(contingency_table)
+
+chi_square_result # significant
+
+```
+
+X-squared: `round(chi_square_result$p.value, 3)` P-value: `round(chi_square_result$p.value, 3)`
+
+```{r visualize_chi_sq}
+jpeg('visualizations/ALC_30-day-readmission_by_SW.jpeg', units='in', width=7, height=6, res=300)
+ggplot(L_dataset_ALC) +
+  aes(x = readmit_flag, fill = factor(social_work_flag)) +
+  ylab('Social Work') + 
+  geom_bar(position = "fill", color='black', size=0.2) +
+  #scale_y_continuous(labels = scales::percent_format(scale = 1)) +  # Convert y-axis labels to percentages, expand = c(0, 0)
+  labs(x = "Unplanned 30-day Readmission", y = "Proportion", title = "Readmission of Patients with Alcohol-Related Disorders", fill='Social work referral') +
+  scale_x_discrete(labels = c('No', 'Yes')) +
+  scale_fill_manual(labels = c("No", "Yes"), values = c("0" = "#282936", "1" = "#FCF351")) + 
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 14),  # Adjust the size of x-axis labels
+    axis.text.y = element_text(size = 14),  # Adjust the size of y-axis labels
+    axis.title.x = element_text(size = 15),  # Adjust the size of x-axis title
+    axis.title.y = element_text(size = 15),  # Adjust the size of y-axis title
+    plot.title = element_text(size = 15)  # Adjust the size of the main plot title
+    
+  )
+dev.off()
+
+```
+
+### Logistic regression method
+
+```{r logistic_regression}
+
+# Fit a logistic regression model
+
+L_dataset_ALC$charlson_comorbidity_index_flag = as.factor(L_dataset_ALC$charlson_comorbidity_index_flag)
+
+logistic_model_flag <- stats::glm(readmit_flag ~ social_work_flag + charlson_comorbidity_index_flag, data = L_dataset_ALC, family = "binomial") # 
+
+logistic_model_index <- stats::glm(readmit_flag ~ social_work_flag + charlson_comorbidity_index, data = L_dataset_ALC, family = "binomial")
+summary(logistic_model_index, test = "z")
+
+m_lg <- logistic_model_index %>%
+  tbl_regression(exponentiate = TRUE, 
+                   label = list(
+               charlson_comorbidity_index ~ "Charlson Comorbidity Index",
+               social_work_flag ~ "Social Work Referral"))
+
+m_lg 
+m_lg %>%
+  plot()
+
+L_dataset_ALC$race_cat = as.factor(L_dataset_ALC$race_cat)
+levels(L_dataset_ALC$race_cat) = c('WHITE', 'ASIAN', 'BLACK', 'HISPANIC', 'OTHER')
+logistic_model_new <- stats::glm(readmit_flag ~ social_work_flag + charlson_comorbidity_index_flag + race_cat + social_work_flag*race_cat, data = L_dataset_ALC, family = "binomial")
+summary(logistic_model_new, test = 'z')
+coefplot::coefplot(logistic_model_new)
+
+
+# Summarize the model
+summary(logistic_model_flag)
+
+# Summarize the model
+summary(logistic_model_index)
+
+
+# coefficient plot 
+my_colors <- c("#FCF351", "#282936")
+
+# Create a coefficient plot
+names(logistic_model_flag$coefficients) = c('(Intercept)', 'Social Work Referral', 'Charlson Comorbidity Index Flag')
+coef_plot <- coefplot::coefplot(logistic_model_flag, 
+                                title="Coefficient Plot", 
+                                xlab="Value", 
+                                ylab="Coefficient", 
+                                color="#282936")
+
+coef_plot
+
+jpeg('visualizations/coefplot_comorbidity_flag.jpeg', units='in', res=300, width=5, height=4)
+print(coef_plot)
+dev.off()
+
+# Create a coefficient plot
+names(logistic_model_index$coefficients) = c('(Intercept)', 'Social Work Referral', 'Charlson Comorbidity Index')
+coef_plot2 <- coefplot::coefplot(logistic_model_index,
+                                title="Coefficient Plot", 
+                                xlab="Value", 
+                                ylab="Coefficient", 
+                                color="#282936")
+
+coef_plot2
+
+jpeg('visualizations/coefplot_comorbidity_index.jpeg', units='in', res=300, width=5, height=4)
+print(coef_plot2)
+dev.off()
+
+
+```
+
+### PS method
+
+```{r}
+
+ps_algo <- function(df) {
+  m <- glm(social_work_flag ~ charlson_comorbidity_index,#+age gender+race_cat++insurance
+           data = df, family = binomial(link = 'logit'))
+  # Get predicted values
+  df <- df %>%
+    mutate(ps = predict(m, type = 'response'))
+  
+  # Create IPW weights
+  df <- df %>%
+    mutate(ipw = case_when(
+      social_work_flag == 1 ~ 1/ps,
+      social_work_flag == 0 ~ 1/(1-ps)))
+
+  glm(readmit_flag ~ social_work_flag, data = df, weights = ipw, family = binomial(link = 'logit'))
+
+}
+
+m_ps <- ps_algo(L_dataset_ALC) %>%
+  tbl_regression(exponentiate = TRUE, 
+                   label = list(
+               social_work_flag ~ "Social Work Referral"))
+
+
+```
+
+
+```{r}
+
+# merge tables
+m_merge <-
+  tbl_merge(
+    tbls = list(m_lg, m_ps),
+    tab_spanner = c("**Regression adjusted**", "**Propensity score weighting**")
+  )
+m_merge
+
+```
