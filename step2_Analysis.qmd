@@ -113,68 +113,6 @@ chi_square_result <- chisq.test(contingency_table)
 
 `percent_referred`% of all patients referred to social work. `percent_referred_ALC`% of all patients with alcohol-related disorders referred to social work.
 
-```{r race}
-# summary statistics for race 
-library(ggplot2)
-library(dplyr)
-
-# Race 
-jpeg(filename='visualizations/Race_referred.jpeg', units='in', res=300, height=6, width=10)
-par(mfrow = c(1, 2), mar = c(5, 5, 5, 5))  # Adjust the margin to leave space for labels
-
-labels = c("Asian: ", "Black: ", "Hispanic: ", "Other: ", "White: ")
-race_no_SW = c(1.8, 29.2, 9.0, 5.7, 54.3)
-pie(race_no_SW, labels = paste0(labels, race_no_SW, "%"), col = c("#FCF351", "#282936", "#7DAFD5", "#494c67ff", "#8164a2ff"), main='\n\n\nPatients who did not receive referral') # rainbow(length(data))
-
-labels = c("Asian: ", "Black: ", "Hispanic: ", "Other: ", "White: ")
-race_SW = c(0.8, 10.6, 8.4, 8.5, 71.7)
-pie(race_SW, labels = paste0(labels, race_SW, "%"), col = c("#FCF351", "#282936", "#7DAFD5", "#494c67ff", "#8164a2ff"), main='\n\n\nPatients who received referral') # rainbow(length(data))
-dev.off()
-
-# Chi-square for race 
-contingency_table = table(L_dataset_ALC$social_work_flag, L_dataset_ALC$race_cat)
-chi_square_result <- chisq.test(contingency_table)
-chi_square_result
-
-# Chi-square for readmission 
-contingency_table = table(L_dataset_ALC$readmit_flag, L_dataset_ALC$race_cat)
-chi_square_result <- chisq.test(contingency_table)
-chi_square_result
-
-
-# Chi-square for comorbidity  
-contingency_table = table(L_dataset_ALC$social_work_flag, L_dataset_ALC$race_cat)
-chi_square_result <- chisq.test(contingency_table)
-
-```
-
-```{r}
-
-# Calculate the mean age for each group
-age_summary <- L_dataset_ALC %>% group_by(social_work_flag) %>%  summarize(mean_age = mean(age),
-                                                                           sd_age = sd(age),
-                                                                           n = n())
-
-# Calculate the overall mean age
-overall_mean_age <- mean(L_dataset_ALC$age)
-
-# Create a bar plot with legend labels
-ggplot(age_summary, aes(x = factor(social_work_flag), y = mean_age, fill = factor(social_work_flag))) +
-  geom_bar(stat = "identity", position = "dodge", color = "black", alpha = 0.7) +
-  geom_hline(yintercept = overall_mean_age, linetype = "dashed", color = "red", size = 1) +
-  labs(x = "Social Work Referral", y = "Average Age", fill = "Social Work Referral") +
-    scale_x_discrete(labels = c("No", "Yes")) +  # Change x-axis labels
-  scale_fill_manual(values = c("#282936", "#FCF351"), labels = c("No", "Yes")) +
-  theme_minimal() + 
- geom_errorbar(
-    aes(ymin = mean_age - sd_age/sqrt(n), ymax = mean_age + sd_age/sqrt(n)),
-    position = position_dodge(width = 0.9),  # Adjust the width as needed
-    width = 0.2,  # Adjust the width of the error bars
-    color = "black"
-  )
-
-
-```
 
 ```{r chi_square}
 
